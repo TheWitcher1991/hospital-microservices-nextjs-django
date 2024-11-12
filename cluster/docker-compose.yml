@@ -1,0 +1,146 @@
+name: hospital-cluster
+
+services:
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx-service
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf
+      - ./deploy/.htpasswd:/etc/nginx/.htpasswd
+      - /etc/letsencrypt:/etc/letsencrypt
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - default-network
+    restart: on-failure
+
+  postgres:
+    extends:
+      file: docker-compose.base.yml
+      service: postgres
+    env_file:
+      - ../backend/.env.prod
+
+  redis:
+    extends:
+      file: docker-compose.base.yml
+      service: redis
+    command:
+      - /bin/sh
+      - -c
+      - redis-server --requirepass "$${REDIS_PASSWORD:?REDIS_PASSWORD variable is not set}"
+    env_file:
+      - ../backend/.env.prod
+
+  rabbitmq:
+    extends:
+      file: docker-compose.base.yml
+      service: rabbitmq
+    env_file:
+      - ../backend/.env.prod
+
+  zookeeper:
+    extends:
+      file: docker-compose.base.yml
+      service: zookeeper
+    env_file:
+      - ../backend/.env.kafka
+
+  kafka:
+    extends:
+      file: docker-compose.base.yml
+      service: kafka
+    depends_on:
+      - zookeeper:
+          condition: service_started
+    env_file:
+      - ../backend/.env.kafka
+
+  kafka_ui:
+    extends:
+      file: docker-compose.base.yml
+      service: kafka_ui
+    depends_on:
+      - kafka:
+          condition: service_started
+
+  backend:
+    extends:
+      file: docker-compose.base.yml
+      service: backend
+    build:
+      context: ../backend
+      dockerfile: ../backend/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  frontend:
+    extends:
+      file: docker-compose.base.yml
+      service: frontend
+    build:
+      context: microfrontends/frontend
+      dockerfile: microfrontends/frontend/Dockerfile
+    depends_on:
+      backend:
+        condition: service_started
+
+  redisinsight:
+    extends:
+      file: docker-compose.base.yml
+      service: redisinsight
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../backend/.env.prod
+
+  pgadmin:
+    image: dpage/pgadmin4:8.11.0
+    container_name: pgadmin-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../backend/.env.prod
+    networks:
+      - default-network
+    restart: on-failure
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus-service
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--log.level=warn"
+    depends_on:
+      nginx:
+        condition: service_started
+    networks:
+      - default-network
+    restart: on-failure
+
+networks:
+  default-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  static_data:
+  media_data:
+  redisinsight_data:
