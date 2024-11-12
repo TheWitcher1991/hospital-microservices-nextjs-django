@@ -6,4 +6,5 @@
 /media/
 /node_modules/
 *.sqlite3
-/frontend-old
+/old
+/old/
