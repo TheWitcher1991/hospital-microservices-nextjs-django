@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "hospital-business-service"
+version = "1.0.0"
+description = ""
+authors = ["TheWitcher1991 <ashot.svazyan@yandex.ru>"]
+license = "GPL-3.0"
+readme = "README.MD"
+repository = "https://github.com/TheWitcher1991/hospital-microservices-nextjs-django"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

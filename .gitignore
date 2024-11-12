@@ -4,7 +4,7 @@
 /.fleet/
 /venv/
 /media/
-/frontend/node_modules
-/backend/crud.txt
+/node_modules/
 *.sqlite3
-/frontend-old
+/old
+/old/
